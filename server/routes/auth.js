@@ -2,7 +2,6 @@ const router = require('express').Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { sendWelcomeEmail } = require('../utils/email');
 
 // Register
 router.post('/register', async (req, res) => {
@@ -26,15 +25,19 @@ router.post('/register', async (req, res) => {
 
         const savedUser = await newUser.save();
 
-        // Send welcome email with credentials
-        try {
-            await sendWelcomeEmail(email, username, password);
-        } catch (emailError) {
-            console.error('Email sending failed, but user was created:', emailError.message);
-        }
+        // IMPORTANT: Email removed
+        // No email sending to avoid SMTP timeout on Render
 
-        res.status(201).json({ message: 'User created successfully!', userId: savedUser._id });
+        // Return password to frontend
+        return res.status(201).json({
+            message: 'Registration successful!',
+            username,
+            email,
+            password  // plain password for popup
+        });
+
     } catch (err) {
+        console.error(err.message);
         res.status(500).json({ error: err.message });
     }
 });
@@ -53,7 +56,11 @@ router.post('/login', async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
         // Create token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign(
+            { id: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
 
         res.json({
             token,
@@ -63,7 +70,9 @@ router.post('/login', async (req, res) => {
                 email: user.email
             }
         });
+
     } catch (err) {
+        console.error(err.message);
         res.status(500).json({ error: err.message });
     }
 });
